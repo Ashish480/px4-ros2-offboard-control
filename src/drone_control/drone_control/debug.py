@@ -43,34 +43,32 @@ class PX4DebugNode(Node):
         self.status_received = True
         self.last_status_time = time.time()
         
-        # Decode arming state
+        # Decode arming state (px4_msgs/VehicleStatus.msg, PX4 v1.15)
         arming_states = {
-            0: "DISARMED",
-            1: "ARMED", 
-            2: "ARMED",
-            3: "STANDBY_ERROR",
-            4: "SHUTDOWN",
-            5: "IN_AIR_RESTORE"
+            1: "DISARMED",
+            2: "ARMED"
         }
-        
-        # Decode navigation state
+
+        # Decode navigation state (px4_msgs/VehicleStatus.msg, PX4 v1.15)
         nav_states = {
             0: "MANUAL",
-            1: "ALTCTL", 
+            1: "ALTCTL",
             2: "POSCTL",
             3: "AUTO_MISSION",
             4: "AUTO_LOITER",
             5: "AUTO_RTL",
-            6: "AUTO_ACRO", 
-            7: "OFFBOARD",
-            8: "STAB",
-            9: "RATTITUDE",
-            10: "AUTO_TAKEOFF",
-            11: "AUTO_LAND",
-            12: "AUTO_FOLLOW_TARGET",
-            13: "AUTO_PRECLAND",
-            14: "ORBIT",
-            17: "AUTO_VTOL_TAKEOFF"
+            6: "POSITION_SLOW",
+            10: "ACRO",
+            12: "DESCEND",
+            13: "TERMINATION",
+            14: "OFFBOARD",
+            15: "STAB",
+            17: "AUTO_TAKEOFF",
+            18: "AUTO_LAND",
+            19: "AUTO_FOLLOW_TARGET",
+            20: "AUTO_PRECLAND",
+            21: "ORBIT",
+            22: "AUTO_VTOL_TAKEOFF"
         }
         
         arming_state_str = arming_states.get(msg.arming_state, f"UNKNOWN({msg.arming_state})")

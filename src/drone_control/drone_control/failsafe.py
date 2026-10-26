@@ -2,6 +2,7 @@
 
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
 from px4_msgs.msg import VehicleCommand, SensorGps, VehicleStatus
 import time
 import threading
@@ -21,12 +22,18 @@ class GpsFailsafeRtlTest(Node):
             '/fmu/in/vehicle_command',
             10)
             
-        # Subscribers
+        # Subscribers (PX4 publishes /fmu/out/* as BEST_EFFORT + TRANSIENT_LOCAL;
+        # a default RELIABLE subscriber is incompatible and receives nothing)
+        px4_qos = QoSProfile(
+            reliability=ReliabilityPolicy.BEST_EFFORT,
+            durability=DurabilityPolicy.TRANSIENT_LOCAL,
+            history=HistoryPolicy.KEEP_LAST,
+            depth=1)
         self.status_sub = self.create_subscription(
             VehicleStatus,
             '/fmu/out/vehicle_status',
             self.status_callback,
-            10)
+            px4_qos)
             
         # State variables
         self.is_armed = False
@@ -37,26 +44,27 @@ class GpsFailsafeRtlTest(Node):
         self.gps_enabled = True
         
         # Initial GPS position (Zurich, Switzerland)
-        self.lat = 47.397742 * 1e7
-        self.lon = 8.545594 * 1e7
-        self.alt = 488.0 * 1e3
+        self.lat = 47.397742  # degrees
+        self.lon = 8.545594   # degrees
+        self.alt = 488.0      # metres above MSL
         
         # GPS publishing timer (5 Hz)
         self.gps_timer = self.create_timer(0.2, self.publish_gps)
         
-        # Main test sequence timer (runs once after initialization)
-        self.create_timer(5.0, self.run_test_sequence)
+        # Main test sequence timer (runs once after initialization; cancelled in the callback)
+        self.test_timer = self.create_timer(5.0, self.run_test_sequence)
         
         self.get_logger().info('GPS Failsafe RTL Test node initialized')
         
     def status_callback(self, msg):
         # Track vehicle status
-        self.is_armed = (msg.arming_state == 2)  # 2 = armed
-        self.nav_state = msg.nav_state
-        
+        self.is_armed = (msg.arming_state == VehicleStatus.ARMING_STATE_ARMED)
+
         # Log state changes
-        if self.nav_state == 3:  # 3 = AUTO_RTL
+        if (msg.nav_state != self.nav_state
+                and msg.nav_state == VehicleStatus.NAVIGATION_STATE_AUTO_RTL):
             self.get_logger().info("Vehicle is in RTL mode")
+        self.nav_state = msg.nav_state
     
     def publish_gps(self):
         # Only publish if GPS is enabled
@@ -66,10 +74,11 @@ class GpsFailsafeRtlTest(Node):
         msg = SensorGps()
         msg.timestamp = int(time.time() * 1000000)
         msg.time_utc_usec = int(time.time() * 1000000)
-        msg.lat = int(self.lat)
-        msg.lon = int(self.lon)
-        msg.alt = int(self.alt)
-        msg.alt_ellipsoid = int(self.alt)
+        # PX4 v1.15 SensorGps uses float degrees / metres (older releases used int lat/lon/alt)
+        msg.latitude_deg = self.lat
+        msg.longitude_deg = self.lon
+        msg.altitude_msl_m = self.alt
+        msg.altitude_ellipsoid_m = self.alt
         
         # Set good GPS quality
         msg.fix_type = 3            # 3D fix
@@ -115,6 +124,8 @@ class GpsFailsafeRtlTest(Node):
         self.rtl_triggered = True
         
     def run_test_sequence(self):
+        # One-shot: without this the 5 s timer re-fires and repeats the whole sequence forever
+        self.test_timer.cancel()
         self.get_logger().info("Starting GPS Failsafe RTL Test Sequence")
         
         # Step 1: Turn OFF GPS

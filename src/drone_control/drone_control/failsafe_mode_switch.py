@@ -129,8 +129,8 @@ class GPSFailureSimulator(Node):
         # Set mode to RTL (Return to Launch)
         # param1: 1 = set mode
         # param2: 4 = auto mode
-        # param3: 3 = sub-mode: RTL
-        self.publish_vehicle_command(176, 1.0, 4.0, 3.0)  # MAV_CMD_DO_SET_MODE - Set to RTL
+        # param3: 5 = sub-mode: RTL (PX4_CUSTOM_SUB_MODE_AUTO_RTL)
+        self.publish_vehicle_command(176, 1.0, 4.0, 5.0)  # MAV_CMD_DO_SET_MODE - Set to RTL
         
         return True
         
@@ -145,8 +145,8 @@ class GPSFailureSimulator(Node):
         # Switch back to hold mode
         # param1: 1 = set mode
         # param2: 4 = auto mode
-        # param3: 4 = auto hold
-        self.publish_vehicle_command(176, 1.0, 4.0, 4.0)  # MAV_CMD_DO_SET_MODE - Set to Hold
+        # param3: 3 = auto hold (PX4_CUSTOM_SUB_MODE_AUTO_LOITER)
+        self.publish_vehicle_command(176, 1.0, 4.0, 3.0)  # MAV_CMD_DO_SET_MODE - Set to Hold
         
         self.get_logger().info('GPS functionality restored')
 
@@ -158,17 +158,25 @@ class GPSFailureSimulator(Node):
         self.get_logger().info('Exiting...')
         sys.exit(0)
 
+    def spin_for(self, seconds, until=None):
+        """Process callbacks for up to `seconds`, returning early once `until()` is true"""
+        end_time = time.time() + seconds
+        while time.time() < end_time:
+            if until is not None and until():
+                return
+            rclpy.spin_once(self, timeout_sec=0.1)
+
     def run(self):
         """Run the GPS failure simulation"""
-        # Wait for a moment to ensure we have position data
-        time.sleep(2)
-        
+        # Spin (so subscriptions are serviced) until we have position data
+        self.spin_for(10.0, until=lambda: self.vehicle_global_position is not None)
+
         if self.simulate_gps_failure():
             self.get_logger().info('GPS failure simulation started. Running for 10 seconds...')
-            
-            # Sleep for 10 seconds or until keyboard interrupt
+
+            # Spin for 10 seconds or until keyboard interrupt
             try:
-                time.sleep(10)
+                self.spin_for(10.0)
                 self.restore_gps()
                 self.get_logger().info('GPS failure simulation completed.')
             except KeyboardInterrupt:
