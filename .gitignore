@@ -1,0 +1,18 @@
+# colcon workspace artifacts
+build/
+install/
+log/
+
+# Local archives / backups
+*.zip
+*.tar.gz
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Editor / tool state
+.vscode/
+.idea/
+.qodo/
