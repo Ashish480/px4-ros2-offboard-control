@@ -13,7 +13,7 @@ studying how the vehicle behaves when a **GPS-loss / Return-to-Launch (RTL) fail
 
 It brings together, in one `colcon` package:
 
-- **Autonomous arm → takeoff → offboard sequence** driven by a finite-state machine
+- **Autonomous arming → takeoff → offboard sequence** driven by a finite-state machine
 - **Keyboard teleoperation** of body-frame velocity and yaw rate (Mode-2 RC layout)
 - **Elliptical-orbit mode** — an experimental scripted trajectory triggered from the keyboard
 - **Two GPS-failsafe experiment nodes** that put the vehicle into RTL/Hold and log the response
